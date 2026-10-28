@@ -1,7 +1,7 @@
-<<<<<<< HEAD
+
 # VCO Web Dashboard
 
-A lightweight web dashboard for querying VMware SD-WAN VeloCloud Orchestrator (VCO) APIs. Built with Python's standard library HTTP server and a single-page HTML frontend — no frameworks, no build step.
+A lightweight web dashboard for querying Arista SD-WAN VeloCloud Orchestrator (VCO) APIs. Built with Python's standard library HTTP server and a single-page HTML frontend — no frameworks, no build step.
 
 ## Features
 
@@ -27,7 +27,7 @@ A lightweight web dashboard for querying VMware SD-WAN VeloCloud Orchestrator (V
 ## Setup
 
 ```bash
-git clone https://github.com/<your-username>/vco-web.git
+git clone https://github.com/nsxdemo/vco-api-lab.git
 cd vco-web
 pip install requests
 ```
@@ -71,20 +71,6 @@ vco-web/
 └── README.md
 ```
 
-### Adding a Module
-
-1. Create `modules/yourmodule.py` with a `run(vco, eid, params)` function
-2. Register it in `server.py`:
-   ```python
-   from modules import yourmodule
-   MODULES["yourmodule"] = yourmodule
-   ```
-3. Add a sidebar card in `index.html` and a renderer in the `renderers` object
-
-## Testing Guide
-
-There is no automated test suite — the project is tested manually against a live VCO.
-
 ### Local Testing
 
 ```bash
@@ -105,43 +91,4 @@ curl -s -X POST http://localhost:8080/api/run/edges \
   -d '{"token":"YOUR_API_TOKEN","vco_url":"YOUR_VCO_HOST","verify_ssl":true,"eid":123}'
 ```
 
-### What to Verify
-
-- [ ] **Connect** — correct token + hostname shows Enterprise ID badge; bad token shows error
-- [ ] **SSL toggle** — unchecking SSL allows connection to self-signed VCOs
-- [ ] **Edges module** — table renders with edge name, state, model, software, serial
-- [ ] **Top Apps module** — adjusting lookback hours and top N changes results
-- [ ] **Route Table module** — expandable rows show multiple preferred exits and route type attributes
-- [ ] **JSON button** — modal shows raw request URL, payload, and response for each module
-- [ ] **Dark mode** — UI switches correctly with system preference
-- [ ] **Error handling** — bad hostname shows connection error; expired token shows HTTP 401
-
-### Pre-push Checklist
-
-```bash
-# Syntax check
-python3 -m py_compile server.py
-python3 -m py_compile modules/base.py
-python3 -m py_compile modules/edges.py
-python3 -m py_compile modules/topapps.py
-python3 -m py_compile modules/routetable.py
-```
-
-## API Authentication
-
-The dashboard uses VCO Enterprise Admin API tokens. Generate one in the VCO portal under **Administration > Operators > API Tokens** (or the equivalent path for your VCO version).
-
-The token is sent as:
-```
-Authorization: Token <your-token>
-```
-
 Tokens are never stored — they live only in the browser session.
-
-## License
-
-Internal use.
-=======
-# vco-api-lab
-
->>>>>>> bcd17d121a05a9be120856f995d196d74d7be803
