@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # VCO Web Dashboard
 
 A lightweight web dashboard for querying VMware SD-WAN VeloCloud Orchestrator (VCO) APIs. Built with Python's standard library HTTP server and a single-page HTML frontend — no frameworks, no build step.
@@ -140,3 +141,7 @@ Tokens are never stored — they live only in the browser session.
 ## License
 
 Internal use.
+=======
+# vco-api-lab
+
+>>>>>>> bcd17d121a05a9be120856f995d196d74d7be803
