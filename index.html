@@ -1,0 +1,544 @@
+<meta charset="utf-8">
+<title>VCO Dashboard</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #f0f2f5; --surface: #ffffff; --surface-alt: #f8f9fb;
+    --fg: #1a2332; --fg-dim: #64748b; --accent: #0891b2; --accent-soft: #ecfeff;
+    --border: #e2e8f0; --success: #16a34a; --warning: #d97706; --error: #dc2626;
+    --radius: 10px; --sidebar-w: 280px;
+    --font-body: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0c1220; --surface: #162032; --surface-alt: #1a2740;
+      --fg: #e2e8f0; --fg-dim: #94a3b8; --accent: #22d3ee;
+      --accent-soft: rgba(34,211,238,.08); --border: #2a3a52;
+      --success: #4ade80; --warning: #fbbf24; --error: #f87171;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c1220; --surface: #162032; --surface-alt: #1a2740;
+    --fg: #e2e8f0; --fg-dim: #94a3b8; --accent: #22d3ee;
+    --accent-soft: rgba(34,211,238,.08); --border: #2a3a52;
+    --success: #4ade80; --warning: #fbbf24; --error: #f87171;
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: var(--font-body); font-size: 14px; line-height: 1.55;
+  }
+
+  /* ---- top bar ---- */
+  .topbar {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 10px 24px; display: flex; align-items: center; gap: 16px;
+    flex-wrap: wrap; position: sticky; top: 0; z-index: 10;
+  }
+  .topbar .logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .topbar .logo h1 { font-size: 1rem; font-weight: 700; margin: 0; white-space: nowrap; }
+  .topbar .fields { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; flex-wrap: wrap; }
+  .topbar input[type="password"], .topbar input[type="text"] {
+    border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px;
+    font-family: var(--font-mono); font-size: .8rem; background: var(--surface-alt);
+    color: var(--fg); outline: none; min-width: 0;
+  }
+  .topbar input[type="password"] { flex: 1; min-width: 180px; }
+  .topbar input[type="text"] { width: 220px; }
+  .topbar .check-sm { display: flex; align-items: center; gap: 5px; font-size: .78rem; color: var(--fg-dim); white-space: nowrap; }
+  .topbar .check-sm input { width: 14px; height: 14px; accent-color: var(--accent); }
+  .topbar button.connect-btn {
+    padding: 6px 20px; border: none; border-radius: 6px; background: var(--accent);
+    color: #fff; font-size: .8rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .topbar button.connect-btn:hover { opacity: .85; }
+  .topbar button.connect-btn:disabled { opacity: .45; cursor: not-allowed; }
+  .topbar .conn-status { font-size: .78rem; color: var(--fg-dim); }
+  .topbar .conn-status.ok { color: var(--success); }
+  .topbar .conn-status.error { color: var(--error); }
+
+  /* ---- main layout ---- */
+  .layout { display: flex; min-height: calc(100vh - 52px); }
+
+  /* ---- sidebar ---- */
+  .sidebar {
+    width: var(--sidebar-w); flex-shrink: 0; background: var(--surface);
+    border-right: 1px solid var(--border); padding: 16px; overflow-y: auto;
+  }
+  .sidebar h3 {
+    font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--fg-dim); margin: 0 0 12px;
+  }
+  .mod-card {
+    background: var(--surface-alt); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; margin-bottom: 10px; transition: border-color .15s;
+  }
+  .mod-card.active { border-color: var(--accent); }
+  .mod-card.disabled { opacity: .45; pointer-events: none; }
+  .mod-card .mod-title {
+    font-size: .82rem; font-weight: 600; margin: 0 0 4px; display: flex;
+    align-items: center; justify-content: space-between;
+  }
+  .mod-card .mod-desc { font-size: .72rem; color: var(--fg-dim); margin: 0 0 8px; }
+  .mod-card label.field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
+  .mod-card label.field span { font-size: .7rem; font-weight: 500; color: var(--fg-dim); }
+  .mod-card input[type="number"] {
+    border: 1px solid var(--border); border-radius: 5px; padding: 5px 8px;
+    font-family: var(--font-mono); font-size: .78rem; background: var(--surface);
+    color: var(--fg); outline: none; width: 100%;
+  }
+  .mod-card .param-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .mod-card .mod-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .mod-card button.run-sm {
+    padding: 5px 16px; border: none; border-radius: 5px; background: var(--accent);
+    color: #fff; font-size: .76rem; font-weight: 600; cursor: pointer;
+  }
+  .mod-card button.run-sm:hover { opacity: .85; }
+  .mod-card button.run-sm:disabled { opacity: .45; cursor: not-allowed; }
+  .mod-card button.json-btn {
+    padding: 5px 10px; border: 1px solid var(--border); border-radius: 5px;
+    background: var(--surface); color: var(--fg-dim); font-size: .7rem; font-weight: 500;
+    cursor: pointer;
+  }
+  .mod-card button.json-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .mod-card button.json-btn:disabled { opacity: .35; cursor: not-allowed; }
+  .mod-card .mod-status { font-size: .72rem; color: var(--fg-dim); }
+
+  /* ---- main panel ---- */
+  .main-panel {
+    flex: 1; padding: 20px 24px; overflow-y: auto; min-width: 0;
+  }
+  .panel-empty {
+    display: flex; align-items: center; justify-content: center;
+    height: 300px; color: var(--fg-dim); font-size: .9rem;
+  }
+  .result-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .result-header h2 {
+    font-size: 1rem; font-weight: 700; margin: 0;
+  }
+
+  /* ---- shared result styles ---- */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+  .errors-box {
+    background: color-mix(in srgb, var(--error) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--error) 25%, transparent);
+    border-radius: 7px; padding: 10px 14px; font-size: .82rem; color: var(--error); margin-bottom: 1rem;
+  }
+  .errors-box ul { margin: 4px 0 0; padding-left: 18px; }
+  .summary-strip { display: flex; gap: 2rem; flex-wrap: wrap; margin-bottom: .75rem; }
+  .summary-strip .stat { text-align: center; }
+  .summary-strip .stat .num { font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono); color: var(--accent); line-height: 1.2; }
+  .summary-strip .stat .lbl { font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--fg-dim); }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .8rem; font-variant-numeric: tabular-nums; }
+  th { text-align: left; font-weight: 600; font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--fg-dim); padding: 7px 10px; border-bottom: 2px solid var(--border); white-space: nowrap; }
+  td { padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--accent-soft); }
+
+  .edge-name { font-weight: 500; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+  .dot.connected { background: var(--success); } .dot.offline { background: var(--error); } .dot.other { background: var(--warning); }
+  .bar-cell { min-width: 120px; }
+  .bar-track { height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width .4s ease; }
+  .bytes { font-family: var(--font-mono); font-size: .78rem; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 5px; }
+
+  details.json-block { margin-bottom: .75rem; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+  details.json-block summary { padding: 7px 12px; font-size: .76rem; font-weight: 600; color: var(--fg-dim); cursor: pointer; background: var(--surface-alt); user-select: none; }
+  details.json-block summary:hover { color: var(--accent); }
+  details.json-block pre { margin: 0; padding: 10px 14px; font-family: var(--font-mono); font-size: .74rem; line-height: 1.5; overflow-x: auto; white-space: pre; background: var(--surface-alt); max-height: 400px; overflow-y: auto; }
+
+  .expand-toggle { cursor: pointer; user-select: none; } .expand-toggle:hover { color: var(--accent); }
+  .expand-arrow { display: inline-block; width: 14px; font-size: .7rem; color: var(--fg-dim); transition: transform .15s; }
+  .expand-arrow.open { transform: rotate(90deg); }
+  .sub-row { display: none; } .sub-row.open { display: table-row; }
+  .sub-row td { background: var(--surface-alt); padding: 6px 10px 6px 28px; border-bottom: 1px solid var(--border); }
+  .sub-table { width: 100%; font-size: .76rem; border-collapse: collapse; }
+  .sub-table td { padding: 3px 8px 3px 0; border: none; white-space: nowrap; background: transparent; }
+  .sub-table .sub-label { color: var(--fg-dim); font-weight: 500; font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; }
+
+  /* ---- JSON modal ---- */
+  .json-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+    z-index: 100; align-items: center; justify-content: center;
+  }
+  .json-overlay.open { display: flex; }
+  .json-modal {
+    background: var(--surface); border-radius: 10px; width: 90%; max-width: 800px;
+    max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+  .json-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    font-size: .85rem; font-weight: 600;
+  }
+  .json-modal-header button {
+    background: none; border: none; font-size: 1.2rem; cursor: pointer;
+    color: var(--fg-dim); padding: 0 4px;
+  }
+  .json-modal-body { overflow-y: auto; padding: 16px; flex: 1; }
+  .json-modal-body pre {
+    margin: 0; font-family: var(--font-mono); font-size: .78rem; line-height: 1.5;
+    white-space: pre; overflow-x: auto;
+  }
+  .json-modal-body h4 {
+    font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--fg-dim); margin: 0 0 6px;
+  }
+  .json-modal-body h4:not(:first-child) { margin-top: 20px; }
+
+  /* ---- responsive ---- */
+  @media (max-width: 768px) {
+    .layout { flex-direction: column; }
+    .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+    .topbar .fields { flex-basis: 100%; }
+  }
+</style>
+
+<!-- ===== TOP BAR ===== -->
+<div class="topbar">
+  <div class="logo">
+    <svg width="28" height="28" viewBox="0 0 36 36" fill="none">
+      <rect width="36" height="36" rx="8" fill="var(--accent)"/>
+      <path d="M10 18h4l3-6 4 12 3-6h4" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h1>VCO Dashboard</h1>
+  </div>
+  <div class="fields">
+    <input type="password" id="token" placeholder="API Token">
+    <input type="text" id="vco_url" value="vco12-usvi1.velocloud.net" placeholder="VCO Hostname">
+    <div class="check-sm"><input type="checkbox" id="verify_ssl" checked><span>SSL</span></div>
+    <button class="connect-btn" id="connectBtn" onclick="doConnect()">Connect</button>
+    <span class="conn-status" id="connStatus"></span>
+  </div>
+</div>
+
+<!-- ===== LAYOUT ===== -->
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <h3>Modules</h3>
+
+    <!-- Edges -->
+    <div class="mod-card disabled" id="mod-edges">
+      <div class="mod-title">Edges</div>
+      <div class="mod-desc">Edge appliances and status</div>
+      <div class="mod-actions">
+        <button class="run-sm" onclick="runModule('edges')">Run</button>
+        <button class="json-btn" onclick="showJson('edges')" disabled>JSON</button>
+        <span class="mod-status" id="status-edges"></span>
+      </div>
+    </div>
+
+    <!-- Top Apps -->
+    <div class="mod-card disabled" id="mod-topapps">
+      <div class="mod-title">Top Applications</div>
+      <div class="mod-desc">Top apps by bandwidth</div>
+      <div class="param-row">
+        <label class="field">
+          <span>Lookback (hrs)</span>
+          <input type="number" id="param-topapps-lookback_hours" value="144" min="1" max="8760">
+        </label>
+        <label class="field">
+          <span>Top N</span>
+          <input type="number" id="param-topapps-top_n" value="10" min="1" max="100">
+        </label>
+      </div>
+      <div class="mod-actions">
+        <button class="run-sm" onclick="runModule('topapps')">Run</button>
+        <button class="json-btn" onclick="showJson('topapps')" disabled>JSON</button>
+        <span class="mod-status" id="status-topapps"></span>
+      </div>
+    </div>
+
+    <!-- Route Table -->
+    <div class="mod-card disabled" id="mod-routetable">
+      <div class="mod-title">Route Table</div>
+      <div class="mod-desc">IPv4 route table with exits</div>
+      <label class="field">
+        <span>Limit</span>
+        <input type="number" id="param-routetable-route_limit" value="256" min="1" max="10000">
+      </label>
+      <div class="mod-actions">
+        <button class="run-sm" onclick="runModule('routetable')">Run</button>
+        <button class="json-btn" onclick="showJson('routetable')" disabled>JSON</button>
+        <span class="mod-status" id="status-routetable"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN PANEL -->
+  <div class="main-panel" id="mainPanel">
+    <div class="panel-empty">Connect to a VCO and run a module to see results</div>
+  </div>
+</div>
+
+<!-- JSON MODAL -->
+<div class="json-overlay" id="jsonOverlay" onclick="if(event.target===this)closeJson()">
+  <div class="json-modal">
+    <div class="json-modal-header">
+      <span id="jsonModalTitle">Raw JSON</span>
+      <button onclick="closeJson()">&times;</button>
+    </div>
+    <div class="json-modal-body" id="jsonModalBody"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  let _eid = null;
+  const _moduleData = {};
+
+  function esc(s) { const d = document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; }
+  function fmtBytes(n) {
+    if (n == null) return "-";
+    const units = ["B","KB","MB","GB","TB"];
+    let i = 0, v = Number(n);
+    while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+    return v.toFixed(i === 0 ? 0 : 2) + " " + units[i];
+  }
+  function dotClass(state) {
+    if (!state) return "other";
+    const s = state.toUpperCase();
+    return s === "CONNECTED" ? "connected" : (s === "OFFLINE" || s === "NEVER_ACTIVATED") ? "offline" : "other";
+  }
+  function creds() {
+    return { token: $("#token").value.trim(), vco_url: $("#vco_url").value.trim(), verify_ssl: $("#verify_ssl").checked };
+  }
+
+  // ===== CONNECT =====
+  window.doConnect = async function () {
+    const btn = $("#connectBtn"), st = $("#connStatus");
+    btn.disabled = true; st.className = "conn-status";
+    st.innerHTML = '<span class="spinner"></span>';
+    _eid = null;
+    document.querySelectorAll(".mod-card").forEach(c => c.classList.add("disabled"));
+    try {
+      const r = await fetch("/api/connect", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(creds()) });
+      const d = await r.json();
+      if (d.success && d.enterprise) {
+        _eid = d.enterprise.id;
+        st.className = "conn-status ok";
+        st.innerHTML = `<span class="dot connected" style="width:8px;height:8px"></span>${esc(d.enterprise.name)} (${d.enterprise.id})`;
+        document.querySelectorAll(".mod-card").forEach(c => c.classList.remove("disabled"));
+      } else {
+        st.className = "conn-status error";
+        st.textContent = (d.errors && d.errors[0]) || "Failed";
+      }
+    } catch (e) { st.className = "conn-status error"; st.textContent = e.message; }
+    finally { btn.disabled = false; }
+  };
+
+  // ===== JSON MODAL =====
+  window.showJson = function (moduleId) {
+    const d = _moduleData[moduleId];
+    if (!d) return;
+    const body = $("#jsonModalBody");
+    let html = "";
+
+    // primary request/response
+    if (d._request) {
+      html += `<h4>Request</h4><pre>${esc(
+        (d._request.url ? "POST " + d._request.url + "\n\n" : "") +
+        JSON.stringify(d._request.payload || d._request, null, 2)
+      )}</pre>`;
+    }
+    if (d._response != null) {
+      html += `<h4>Response</h4><pre>${esc(JSON.stringify(d._response, null, 2))}</pre>`;
+    }
+
+    // secondary request/response (e.g. topapps app name resolution)
+    if (d._request2) {
+      html += `<h4>Request 2 (App Names)</h4><pre>${esc(
+        (d._request2.url ? "POST " + d._request2.url + "\n\n" : "") +
+        JSON.stringify(d._request2.payload || d._request2, null, 2)
+      )}</pre>`;
+    }
+    if (d._response2 != null) {
+      html += `<h4>Response 2 (App Names)</h4><pre>${esc(JSON.stringify(d._response2, null, 2))}</pre>`;
+    }
+
+    body.innerHTML = html;
+    const titles = { edges: "Edges", topapps: "Top Applications", routetable: "Route Table" };
+    $("#jsonModalTitle").textContent = (titles[moduleId] || moduleId) + " - Raw JSON";
+    $("#jsonOverlay").classList.add("open");
+  };
+  window.closeJson = function () { $("#jsonOverlay").classList.remove("open"); };
+
+  // ===== MODULE PARAMS =====
+  const modParams = {
+    edges: () => ({}),
+    topapps: () => ({ lookback_hours: Number($("#param-topapps-lookback_hours").value) || 144, top_n: Number($("#param-topapps-top_n").value) || 10 }),
+    routetable: () => ({ route_limit: Number($("#param-routetable-route_limit").value) || 256 }),
+  };
+
+  // ===== RUN MODULE =====
+  window.runModule = async function (id) {
+    if (!_eid) { alert("Connect first."); return; }
+    const card = $(`#mod-${id}`), st = $(`#status-${id}`);
+    const runBtn = card.querySelector("button.run-sm"), jsonBtn = card.querySelector("button.json-btn");
+    runBtn.disabled = true; st.innerHTML = '<span class="spinner"></span>';
+    jsonBtn.disabled = true;
+
+    try {
+      const r = await fetch(`/api/run/${id}`, {
+        method: "POST", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ ...creds(), eid: _eid, ...(modParams[id] ? modParams[id]() : {}) }),
+      });
+      const d = await r.json();
+      _moduleData[id] = d;
+      jsonBtn.disabled = false;
+
+      // highlight active card
+      document.querySelectorAll(".mod-card").forEach(c => c.classList.remove("active"));
+      card.classList.add("active");
+
+      // render into main panel
+      const panel = $("#mainPanel");
+      const titles = { edges: "Edges", topapps: "Top Applications", routetable: "Route Table" };
+      let html = `<div class="result-header"><h2>${titles[id] || id}</h2></div>`;
+      if (d.errors && d.errors.length) {
+        html += `<div class="errors-box"><strong>Errors</strong><ul>${d.errors.map(e => "<li>" + esc(e) + "</li>").join("")}</ul></div>`;
+      }
+      html += `<div id="result-content"></div>`;
+      panel.innerHTML = html;
+
+      if (renderers[id]) renderers[id]($("#result-content"), d);
+      st.textContent = "";
+    } catch (e) { st.textContent = e.message; }
+    finally { runBtn.disabled = false; }
+  };
+
+  // ===== RENDERERS =====
+  const renderers = {};
+
+  renderers.edges = function (el, data) {
+    if (!data.edges || !data.edges.length) { el.innerHTML = "<p style='color:var(--fg-dim)'>No edges found.</p>"; return; }
+    const edges = data.edges;
+    const conn = edges.filter(e => (e.edgeState||"").toUpperCase() === "CONNECTED").length;
+    el.innerHTML = `
+      <div class="summary-strip">
+        <div class="stat"><div class="num">${edges.length}</div><div class="lbl">Total</div></div>
+        <div class="stat"><div class="num" style="color:var(--success)">${conn}</div><div class="lbl">Connected</div></div>
+        <div class="stat"><div class="num" style="color:var(--error)">${edges.length-conn}</div><div class="lbl">Other</div></div>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Name</th><th>State</th><th>Model</th><th>Software</th><th>Serial</th></tr></thead>
+        <tbody>${edges.map(e=>`<tr>
+          <td class="edge-name">${esc(e.name)}</td>
+          <td><span class="dot ${dotClass(e.edgeState)}"></span>${esc(e.edgeState)}</td>
+          <td>${esc(e.modelNumber||"-")}</td>
+          <td style="font-family:var(--font-mono)">${esc(e.softwareVersion||"-")}</td>
+          <td style="font-family:var(--font-mono)">${esc(e.serialNumber||"-")}</td>
+        </tr>`).join("")}</tbody>
+      </table></div>`;
+  };
+
+  renderers.topapps = function (el, data) {
+    if (!data.top_apps || !data.top_apps.length) { el.innerHTML = "<p style='color:var(--fg-dim)'>No applications found.</p>"; return; }
+    const apps = data.top_apps, names = data.app_names || {};
+    const maxB = Math.max(...apps.map(a=>Number(a.totalBytes||a.bytesRx||0)+Number(a.bytesTx||0)),1);
+    el.innerHTML = `<div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>App ID</th><th>Name</th><th>Display Name</th><th>Total Bytes</th><th>Bandwidth</th></tr></thead>
+      <tbody>${apps.map((a,i)=>{
+        const id=a.applicationId||a.appId||a.id||a.name||"";
+        const r=names[String(id)]||{};
+        const total=Number(a.totalBytes||0)||(Number(a.bytesRx||0)+Number(a.bytesTx||0));
+        const pct=Math.max(2,(total/maxB)*100);
+        return `<tr><td>${i+1}</td>
+          <td style="font-family:var(--font-mono)">${esc(String(id))}</td>
+          <td class="edge-name">${esc(r.name||"-")}</td>
+          <td>${esc(r.displayName||"-")}</td>
+          <td class="bytes">${fmtBytes(total)}</td>
+          <td class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div></td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table></div>`;
+  };
+
+  renderers.routetable = function (el, data) {
+    let subnets = [];
+    const rtResp = data._response;
+    if (rtResp) {
+      const inner = rtResp.result || rtResp;
+      if (Array.isArray(inner.subnets)) subnets = inner.subnets;
+      else if (inner.data && Array.isArray(inner.data.subnets)) subnets = inner.data.subnets;
+      else if (Array.isArray(inner.data)) subnets = inner.data;
+      else if (Array.isArray(inner)) subnets = inner;
+    }
+    if (!subnets.length) { el.innerHTML = "<p style='color:var(--fg-dim)'>No routes found.</p>"; return; }
+
+    const reach = subnets.filter(s=>s.reachable!==false).length;
+    let html = `<div class="summary-strip">
+      <div class="stat"><div class="num">${subnets.length}</div><div class="lbl">Total</div></div>
+      <div class="stat"><div class="num" style="color:var(--success)">${reach}</div><div class="lbl">Reachable</div></div>
+      <div class="stat"><div class="num" style="color:var(--error)">${subnets.length-reach}</div><div class="lbl">Unreachable</div></div>
+    </div>`;
+    html += `<div class="table-wrap"><table>
+      <thead><tr><th>Subnet</th><th>Preferred Exits</th><th>Next Hop IP</th><th>Interface</th><th>Route Type</th><th>Cost / Metric</th><th>NSD Name</th></tr></thead><tbody>`;
+
+    subnets.forEach((s,i)=>{
+      const subnet=s.subnet||s.prefix||s.address||"-";
+      const exits=s.preferredExits||s.preferred_exits||s.exits||[];
+      const ec=Array.isArray(exits)?exits.length:0;
+      const fe=ec>0?exits[0]:{};
+      const nhip=fe.nextHopIp||fe.nextHop||s.nextHopIp||s.nextHop||"-";
+      const iface=fe.interface||fe.iface||s.interface||s.iface||"-";
+      const rtype=fe.routeType||fe.type||s.routeType||s.type||"-";
+      const cost=fe.cost!=null?fe.cost:(s.cost!=null?s.cost:"-");
+      const metric=fe.metric!=null?fe.metric:(s.metric!=null?s.metric:"-");
+      const cm=cost!=="-"||metric!=="-"?(cost!=="-"?cost:"")+(cost!=="-"&&metric!=="-"?" / ":"")+(metric!=="-"?metric:""):"-";
+      const nsd=fe.nsdName||fe.NSDName||fe.nsd||s.nsdName||s.NSDName||s.nsd||"-";
+      const sid="rt-s-"+i, tid="rt-t-"+i, hasE=ec>1;
+
+      const eLabel=rtype==="DIRECT"?"Router (non-overlay)"
+        :rtype==="EDGE"?(fe.edgeName||fe.edge||s.edgeName||s.edge||"Edge")
+        :(ec>0?(fe.edgeName||fe.edge||"Exit 1"):"-");
+
+      html+=`<tr>`;
+      if(hasE){html+=`<td class="expand-toggle" data-target="${sid}" style="font-family:var(--font-mono)"><span class="expand-arrow" id="arrow-${sid}">&#9654;</span> ${esc(subnet)} <span style="color:var(--fg-dim);font-size:.7rem">(${ec})</span></td>`;}
+      else{html+=`<td style="font-family:var(--font-mono)">${esc(subnet)}</td>`;}
+      html+=`<td>${esc(eLabel)}</td><td style="font-family:var(--font-mono)">${esc(String(nhip))}</td><td>${esc(String(iface))}</td>`;
+      const attrs=fe.routeTypeAttributes||fe.attributes||s.routeTypeAttributes||s.attributes||null;
+      if(attrs&&typeof attrs==="object"&&Object.keys(attrs).length){html+=`<td class="expand-toggle" data-target="${tid}"><span class="expand-arrow" id="arrow-${tid}">&#9654;</span> ${esc(String(rtype))}</td>`;}
+      else{html+=`<td>${esc(String(rtype))}</td>`;}
+      html+=`<td style="font-family:var(--font-mono)">${esc(String(cm))}</td><td>${esc(String(nsd))}</td></tr>`;
+
+      if(hasE){
+        html+=`<tr class="sub-row" id="${sid}"><td colspan="7"><table class="sub-table"><tr><td class="sub-label">Preferred VPN Exits</td><td class="sub-label">Next Hop IP</td><td class="sub-label">Interface</td><td class="sub-label">Route Type</td><td class="sub-label">Cost / Metric</td><td class="sub-label">NSD</td></tr>`;
+        exits.forEach((ex,ei)=>{
+          const xNh=ex.nextHopIp||ex.nextHop||"-",xIf=ex.interface||ex.iface||"-",xRt=ex.routeType||ex.type||"-";
+          const xC=ex.cost!=null?ex.cost:"-",xM=ex.metric!=null?ex.metric:"-";
+          const xCm=xC!=="-"||xM!=="-"?(xC!=="-"?xC:"")+(xC!=="-"&&xM!=="-"?" / ":"")+(xM!=="-"?xM:""):"-";
+          const xNsd=ex.nsdName||ex.NSDName||ex.nsd||"-";
+          const xT=ex.type||ex.routeType||"-";
+          const xL=xT==="DIRECT"?"Router (non-overlay)":xT==="EDGE"?(ex.edgeName||ex.edge||s.edgeName||s.edge||"Edge"):xT!=="-"?xT:(ex.edgeName||ex.edge||("Exit "+(ei+1)));
+          html+=`<tr><td>${esc(xL)}</td><td style="font-family:var(--font-mono)">${esc(String(xNh))}</td><td>${esc(String(xIf))}</td><td>${esc(String(xRt))}</td><td style="font-family:var(--font-mono)">${esc(String(xCm))}</td><td>${esc(String(xNsd))}</td></tr>`;
+        });
+        html+=`</table></td></tr>`;
+      }
+      if(attrs&&typeof attrs==="object"&&Object.keys(attrs).length){
+        html+=`<tr class="sub-row" id="${tid}"><td colspan="7"><table class="sub-table">`;
+        Object.entries(attrs).forEach(([k,v])=>{html+=`<tr><td class="sub-label">${esc(k)}</td><td style="font-family:var(--font-mono)">${esc(typeof v==="object"?JSON.stringify(v):String(v))}</td></tr>`;});
+        html+=`</table></td></tr>`;
+      }
+    });
+    html+=`</tbody></table></div>`;
+    el.innerHTML=html;
+    el.querySelectorAll(".expand-toggle").forEach(t=>{t.addEventListener("click",()=>{
+      const id=t.getAttribute("data-target"),sr=document.getElementById(id),ar=document.getElementById("arrow-"+id);
+      if(sr){sr.classList.toggle("open");if(ar)ar.classList.toggle("open");}
+    });});
+  };
+})();
+</script>
