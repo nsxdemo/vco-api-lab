@@ -1,4 +1,142 @@
-# vco-api-lab
-# vco-api-lab
-# vco-api-lab
-# vco-api-lab
+# VCO Web Dashboard
+
+A lightweight web dashboard for querying VMware SD-WAN VeloCloud Orchestrator (VCO) APIs. Built with Python's standard library HTTP server and a single-page HTML frontend — no frameworks, no build step.
+
+## Features
+
+- **Token-based authentication** — connects to any VCO using an Enterprise Admin API token
+- **Enterprise ID display** — shows the Enterprise ID, name, and account number on successful connection
+- **Modular design** — each API query is an independent module in `modules/`
+- **Raw JSON inspector** — view the exact API request/response for every query
+- **Dark mode** — follows system preference automatically
+
+### Modules
+
+| Module | Description | API Endpoint |
+|--------|-------------|--------------|
+| **Edges** | Lists edge appliances with state, model, software version, serial | `enterprise/getEnterpriseEdges` |
+| **Top Applications** | Top apps by bandwidth over a configurable lookback window | `metrics/getEnterpriseFlowMetrics` |
+| **Route Table** | IPv4 route table with preferred exits and route type attributes | `enterprise/getEnterpriseRouteTable` |
+
+## Requirements
+
+- Python 3.8+
+- `requests` library
+
+## Setup
+
+```bash
+git clone https://github.com/<your-username>/vco-web.git
+cd vco-web
+pip install requests
+```
+
+## Usage
+
+```bash
+python3 server.py [--port PORT]
+```
+
+Default port is `8080`. Open `http://localhost:8080` in your browser.
+
+### Connecting to a VCO
+
+1. Enter your **API Token** (Enterprise Admin token from the VCO portal)
+2. Enter the **VCO Hostname** (e.g., `vco12-usvi1.velocloud.net`)
+3. Optionally uncheck **SSL** if the VCO uses a self-signed certificate
+4. Click **Connect**
+
+On success, the Enterprise ID badge appears in the top bar and all modules become available.
+
+### Running a Module
+
+1. Select a module in the sidebar
+2. Adjust parameters if available (e.g., lookback hours, top N)
+3. Click **Run** — results render in the main panel
+4. Click **JSON** to inspect the raw API request and response
+
+## Project Structure
+
+```
+vco-web/
+├── server.py              # HTTP server — serves index.html and /api endpoints
+├── index.html             # Single-page frontend (HTML + CSS + JS, no build step)
+├── modules/
+│   ├── __init__.py
+│   ├── base.py            # VCOClient (REST + JSON-RPC), shared helpers
+│   ├── edges.py           # Edge list module
+│   ├── topapps.py         # Top applications module
+│   └── routetable.py      # Route table module
+└── README.md
+```
+
+### Adding a Module
+
+1. Create `modules/yourmodule.py` with a `run(vco, eid, params)` function
+2. Register it in `server.py`:
+   ```python
+   from modules import yourmodule
+   MODULES["yourmodule"] = yourmodule
+   ```
+3. Add a sidebar card in `index.html` and a renderer in the `renderers` object
+
+## Testing Guide
+
+There is no automated test suite — the project is tested manually against a live VCO.
+
+### Local Testing
+
+```bash
+# Start the server
+python3 server.py
+
+# Verify it serves the UI
+curl -s http://localhost:8080 | head -5
+
+# Test the connect endpoint (replace with your credentials)
+curl -s -X POST http://localhost:8080/api/connect \
+  -H "Content-Type: application/json" \
+  -d '{"token":"YOUR_API_TOKEN","vco_url":"YOUR_VCO_HOST","verify_ssl":true}'
+
+# Test a module (replace eid with your Enterprise ID)
+curl -s -X POST http://localhost:8080/api/run/edges \
+  -H "Content-Type: application/json" \
+  -d '{"token":"YOUR_API_TOKEN","vco_url":"YOUR_VCO_HOST","verify_ssl":true,"eid":123}'
+```
+
+### What to Verify
+
+- [ ] **Connect** — correct token + hostname shows Enterprise ID badge; bad token shows error
+- [ ] **SSL toggle** — unchecking SSL allows connection to self-signed VCOs
+- [ ] **Edges module** — table renders with edge name, state, model, software, serial
+- [ ] **Top Apps module** — adjusting lookback hours and top N changes results
+- [ ] **Route Table module** — expandable rows show multiple preferred exits and route type attributes
+- [ ] **JSON button** — modal shows raw request URL, payload, and response for each module
+- [ ] **Dark mode** — UI switches correctly with system preference
+- [ ] **Error handling** — bad hostname shows connection error; expired token shows HTTP 401
+
+### Pre-push Checklist
+
+```bash
+# Syntax check
+python3 -m py_compile server.py
+python3 -m py_compile modules/base.py
+python3 -m py_compile modules/edges.py
+python3 -m py_compile modules/topapps.py
+python3 -m py_compile modules/routetable.py
+```
+
+## API Authentication
+
+The dashboard uses VCO Enterprise Admin API tokens. Generate one in the VCO portal under **Administration > Operators > API Tokens** (or the equivalent path for your VCO version).
+
+The token is sent as:
+```
+Authorization: Token <your-token>
+```
+
+Tokens are never stored — they live only in the browser session.
+
+## License
+
+Internal use.
